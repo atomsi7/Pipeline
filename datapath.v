@@ -104,7 +104,12 @@ module datapath (
 			case (pc_src_ctrl)
 				PC_JUMP: inst_addr <= {inst_addr_next[31:28],inst_data[25:0],2'b00};
 				PC_JR: inst_addr <= data_rs;
-				PC_BEQ: inst_addr <= alu_out;
+				PC_BEQ: begin
+							if(rs_rt_equal)
+								inst_addr <= alu_out;
+							else
+								inst_addr <= inst_addr_next;
+						end
 				default: inst_addr <= inst_addr_next;
 			endcase
 		end
