@@ -262,6 +262,7 @@ module datapath (
 			ID_EX_rs_rt_equal<=rs_rt_equal;			
 		end
 	end
+
 	always @(*) begin
 		opa = ID_EX_data_rs;
 		opb = ID_EX_data_rt;
@@ -283,5 +284,73 @@ module datapath (
 		.oper(ID_EX_aluop),
 		.result(alu_out)
 		);
+
+	
+	//MEM
+	always@(posedge clk) begin
+		if(cpu_rst) begin
+			EX_MEM_IR<=0;
+			EX_MEM_IR_addr<=0;
+			EX_MEM_IR_addr_next<=0;
+
+			EX_MEM_data_rs<=0;
+			EX_MEM_data_rt<=0;
+			EX_MEM_aluout<=0;
+
+			EX_MEN_pc_src<=0;
+
+			EX_MEM_mem_ren<=0;
+			EX_MEM_mem_wen<=0;
+
+			EX_MEM_wb_data_src<=0;
+			regw_data<=0;
+		end
+		else if(cpu_en)begin
+			EX_MEM_IR<=ID_EX_IR;
+			EX_MEM_IR_addr<=ID_EX_IR_addr;
+			EX_MEM_IR_addr_next<=ID_EX_IR_addr_next;
+
+			EX_MEM_data_rs<=ID_EX_data_rs;
+			EX_MEM_data_rt<=ID_Ex_data_rt;
+			EX_MEM_aluout<=alu_out;//aluout first time use
+
+			EX_MEN_pc_src<=ID_EX_pc_src;
+
+			EX_MEM_mem_ren<=ID_EX_mem_ren;
+			EX_MEM_mem_wen<=ID_EX_mem_wen;
+
+			EX_MEM_wb_data_src<=ID_EX_wb_data_src;
+			regw_data<=;//!!!! ??
+			
+		end
+
+	reg[31:0] MEM_WB_aluout;
+	//reg MEM_WB_mem_ren,MEM_WB_mem_wen;
+	reg MEM_WB_wb_data_src;
+	reg MEM_WB_wb_wen;
+	reg[31:0] MEM_WB_mem_din;
+	reg[31:0] MEM_WB_regw_addr,MEM_WB_regw_data;
+
+	//WB
+	always@(posedge clk) begin
+		if(cpu_rst) begin
+			MEM_WB_aluout<=0;
+			MEN_WB_wb_data_src<=0;
+			MEM_WB_wb_wen<=0;
+			MEM_WB_mem_din<=0;
+			MEM_WB_regw_addr<=0;
+			MEM_WB_regw_data<=0;
+		end
+		else if(cpu_en)begin
+			MEM_WB_aluout<=EX_MEM_aluout;
+			MEN_WB_wb_data_src<=EX_MEM_wb_data_src;
+			MEM_WB_wb_wen<=EX_MEM_wb; //!!!! wb_wen add
+			MEM_WB_mem_din<=mem_din;
+			MEM_WB_regw_addr<=; //!!!!  missing signal
+			MEM_WB_regw_data<=0;//!!!! missing signal
+
+		end
+
+	end	
 	
 endmodule
