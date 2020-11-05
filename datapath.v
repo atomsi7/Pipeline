@@ -43,15 +43,57 @@ module datapath (
 	// data signals
 	wire [31:0] inst_addr_next;
 
+	
+	
+
+
+	
+	
+	
+	
+	
+	//IF->ID
+	reg [31:0] IF_ID_IR;
+	reg [31:0] IF_ID_IR_addr,IF_ID_IR_addr_next;
+	reg [31:0] IF_ID_brach_trg;
+	reg [4:0] regw_addr;
 	wire [4:0] addr_rs, addr_rt, addr_rd;
 	wire [31:0] data_rs, data_rt, data_imm;
+	wire rs_rt_equal;
 	
+	
+	//ID->EX
+	reg[31:0] ID_EX_IR,ID_EX_IR_addr,ID_EX_IR_addr_next;
+	reg[31:0] ID_EX_opb;
+	reg[2:0] ID_EX_pc_src;
+	reg[1:0] ID_EX_a_src,ID_EX_b_src;
+	reg[3:0] ID_EX_aluop;
+	reg ID_EX_mem_ren,ID_EX_mem_wen;
+	reg ID_EX_wb_data_src;
+	reg[4:0] ID_EX_addr_rs,ID_EX_addr_rt;
+	reg[31:0] ID_EX_data_rs,ID_EX_data_rt,ID_EX_data_imm;
 	reg [31:0] opa, opb;
 	wire [31:0] alu_out;
-	wire rs_rt_equal;
-	reg [4:0] regw_addr;
+	wire ID_EX_rs_rt_equal;	
+
+
+	//EX->MEM
+	reg[31:0] EX_MEM_IR,EX_MEM_IR_addr,EX_MEM_IR_addr_next;
+	reg[31:0] EX_MEM_data_rs,EX_MEM_data_rt,EX_MEM_aluout;
+	reg[2:0] EX_MEM_pc_src;
+	reg EX_MEM_mem_ren,EX_MEM_mem_wen;
+	reg EX_MEM_wb_data_src;
 	reg [31:0] regw_data;
-	
+
+	//MEM->WB
+	//reg[31:0] MEM_WB_IR,MEM_WB_IR_addr;
+	reg[31:0] MEM_WB_aluout;
+	reg MEM_WB_mem_ren,MEM_WB_mem_wen;
+	reg MEM_WB_wb_data_src;
+	reg wb_wen;
+	reg[31:0] MEM_WB_mem_din;
+	reg[31:0] MEM_WB_regw_addr,MEM_WB_regw_data;
+
 	// debug
 	`ifdef DEBUG
 	wire [31:0] debug_data_reg;
@@ -61,12 +103,12 @@ module datapath (
 		case (debug_addr[4:0])
 			0: debug_data_signal <= inst_addr;
 			1: debug_data_signal <= inst_data;
-			2: debug_data_signal <= 0;
-			3: debug_data_signal <= 0;
-			4: debug_data_signal <= 0;
-			5: debug_data_signal <= 0;
-			6: debug_data_signal <= 0;
-			7: debug_data_signal <= 0;
+			2: debug_data_signal <= IF_ID_IR_addr;
+			3: debug_data_signal <= IF_ID_IR;
+			4: debug_data_signal <= ID_EX_IR_addr;
+			5: debug_data_signal <= ID_EX_IR;
+			6: debug_data_signal <= EX_MEM_IR_addr;
+			7: debug_data_signal <= EX_MEM_IR;
 			8: debug_data_signal <= {27'b0, addr_rs};
 			9: debug_data_signal <= data_rs;
 			10: debug_data_signal <= {27'b0, addr_rt};
@@ -92,8 +134,8 @@ module datapath (
 	`endif
 	
 	//pc+4
-	assign
-		inst_addr_next = inst_addr + 4;
+	assign 
+		inst_addr_next = inst_addr + 4; // inst_addr is PC
 	
 	//next inst
 	always @(posedge clk) begin
@@ -120,7 +162,7 @@ module datapath (
 		addr_rs = inst_data[25:21],
 		addr_rt = inst_data[20:16],
 		addr_rd = inst_data[15:11],
-		data_imm = imm_ext_ctrl ? {{16{inst_data[15]}}, inst_data[15:0]} : {16'b0, inst_data[15:0]};
+		data_imm = imm_ext_ctrl ? {{16{inst_data[15]}}, inst_data[15:0]} : {16'b0, inst_data[15:0]};// 32-bit ext
 		//imm_ext 1: sign_ext 0:zero_ext
 
 
@@ -147,10 +189,10 @@ module datapath (
 		.addr_w(regw_addr),
 		.data_w(regw_data)
 		);
-	
+
 	assign
 		rs_rt_equal = (data_rs == data_rt);
-	
+	// ID
 	always @(*) begin
 		opa = data_rs;
 		opb = data_rt;
@@ -166,20 +208,20 @@ module datapath (
 			EXE_B_BRANCH: opb = data_imm << 2;
 		endcase
 	end
-	
+	//EX
 	alu ALU (
 		.a(opa),
 		.b(opb),
 		.oper(exe_alu_oper_ctrl),
 		.result(alu_out)
 		);
-	
+	//MEM
 	assign
 		mem_ren = mem_ren_ctrl & cpu_en & ~cpu_rst,
 		mem_wen = mem_wen_ctrl & cpu_en & ~cpu_rst,
 		mem_addr = alu_out,
 		mem_dout = data_rt;
-	
+	//WB
 	always @(*) begin
 		regw_data = alu_out;
 		case (wb_data_src_ctrl)
