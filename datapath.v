@@ -162,11 +162,11 @@ module datapath (
 		end
 	end
 	assign
-		inst_data_ctrl = inst_data,
-		addr_rs = inst_data[25:21],
-		addr_rt = inst_data[20:16],
-		addr_rd = inst_data[15:11],
-		data_imm = imm_ext_ctrl ? {{16{inst_data[15]}}, inst_data[15:0]} : {16'b0, inst_data[15:0]};// 32-bit ext
+		inst_data_ctrl = IF_ID_IR,
+		addr_rs = IF_ID_IR[25:21],
+		addr_rt = IF_ID_IR[20:16],
+		addr_rd = IF_ID_IR[15:11],
+		data_imm = imm_ext_ctrl ? {{16{IF_ID_IR[15]}}, IF_ID_IR[15:0]} : {16'b0, IF_ID_IR[15:0]};// 32-bit ext
 		//imm_ext 1: sign_ext 0:zero_ext
 
 
