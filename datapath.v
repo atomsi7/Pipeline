@@ -36,6 +36,10 @@ module datapath (
 	// debug control
 	input wire cpu_rst,  // cpu reset signal
 	input wire cpu_en  // cpu enable signal
+
+	// 这里的信号都是新加的 需要在controller里面进行改动
+	input wire is_branch;
+	output reg[4:0] ID_EX_regw_addr;
 	);
 	
 	`include "mips_define.vh"
@@ -46,16 +50,10 @@ module datapath (
 	
 	
 
-
-	
-	
-	
-	
-	
 	//IF->ID
 	reg [31:0] IF_ID_IR;
 	reg [31:0] IF_ID_IR_addr,IF_ID_IR_addr_next;
-	reg [31:0] IF_ID_brach_trg;
+	reg [31:0] IF_ID_trg_addr;
 	reg [4:0] regw_addr;
 	wire [4:0] addr_rs, addr_rt, addr_rd;
 	wire [31:0] data_rs, data_rt, data_imm;
@@ -90,7 +88,7 @@ module datapath (
 	reg[31:0] MEM_WB_aluout;
 	reg MEM_WB_mem_ren,MEM_WB_mem_wen;
 	reg MEM_WB_wb_data_src;
-	reg wb_wen;
+	reg MEM_WB_wb_wen;
 	reg[31:0] MEM_WB_mem_din;
 	reg[31:0] MEM_WB_regw_addr,MEM_WB_regw_data;
 
@@ -133,30 +131,36 @@ module datapath (
 		debug_data = debug_addr[5] ? debug_data_signal : debug_data_reg;
 	`endif
 	
-	//pc+4
+	//IF
 	assign 
-		inst_addr_next = inst_addr + 4; // inst_addr is PC
+		inst_addr_next = inst_addr + 4; // PC=PC+4
 	
-	//next inst
 	always @(posedge clk) begin
 		if (cpu_rst) begin
 			inst_addr <= 0;
 		end
 		else if (cpu_en) begin
-			case (pc_src_ctrl)
-				PC_JUMP: inst_addr <= {inst_addr_next[31:28],inst_data[25:0],2'b00};
-				PC_JR: inst_addr <= data_rs;
-				PC_BEQ: begin
-							if(rs_rt_equal)
-								inst_addr <= alu_out;
-							else
-								inst_addr <= inst_addr_next;
-						end
-				default: inst_addr <= inst_addr_next;
-			endcase
+			if(is_branch)	// this signal is new, CHECK CONTROLLER.V!!!!!!
+			// is_branch（input wire) 应该是表示是否跳转，包括j类和branch类，controller里面应该有这个信号的相关改动，要改一下
+				inst_addr<=IF_ID_trg_addr;
+			else
+				inst_addr<=inst_addr_next;
 		end
 	end
 	
+	//ID
+	always @(posedge clk) begin
+		if(cpu_rst) begin
+			IF_ID_IR_addr<=0;
+			IF_ID_IR<=0;
+			IF_ID_IR_addr_next<=0;
+		end
+		else if(cpu_en) begin
+			IF_ID_IR_addr<=inst_addr;
+			IF_ID_IR<=inst_data;
+			IF_ID_IR_addr_next<=inst_addr_next;
+		end
+	end
 	assign
 		inst_data_ctrl = inst_data,
 		addr_rs = inst_data[25:21],
@@ -185,49 +189,99 @@ module datapath (
 		.data_a(data_rs),
 		.addr_b(addr_rt),
 		.data_b(data_rt),
-		.en_w(wb_wen_ctrl & cpu_en & ~cpu_rst),
-		.addr_w(regw_addr),
-		.data_w(regw_data)
+		.en_w(MEM_WB_wb_wen & cpu_en & ~cpu_rst),
+		.addr_w(MEM_WB_regw_addr),
+		.data_w(MEM_WB_regw_data)
 		);
 
 	assign
 		rs_rt_equal = (data_rs == data_rt);
-	// ID
-	always @(*) begin
-		opa = data_rs;
-		opb = data_rt;
-		case (exe_a_src_ctrl)
-			EXE_A_RS: opa = data_rs;
-			EXE_A_LINK: opa = inst_addr_next;
-			EXE_A_BRANCH: opa = inst_addr_next;
-		endcase
-		case (exe_b_src_ctrl)
-			EXE_B_RT: opb = data_rt;
-			EXE_B_IMM: opb = data_imm;
-			EXE_B_LINK: opb = 4;
-			EXE_B_BRANCH: opb = data_imm << 2;
+	reg[31:0] branch_trg;
+	assign 
+		branch_trg = IF_ID_IR_addr_next + (data_imm << 2);	// branch target address
+	always @( *) begin
+		case(pc_src_ctrl)
+			PC_JUMP:IF_ID_trg_addr<={IF_ID_IR_addr[31:28],IF_ID_IR[25:0],2'b0};// jump address
+			PC_JR:IF_ID_trg_addr<=data_rs;
+			PC_BEQ:begin
+				if(rs_rt_equal)
+					IF_ID_trg_addr<=branch_trg;
+				else
+					IF_ID_trg_addr<=IF_ID_IR_addr_next;
+			end
+			PC_BNE:begin 
+				if(!rs_rt_equal)
+					IF_ID_trg_addr<=branch_trg;
+				else
+					IF_ID_trg_addr<=IF_ID_IR_addr_next;
+			end
+			default:
+				IF_ID_trg_addr<=IF_ID_IR_addr_next;
 		endcase
 	end
-	//EX
+	//EXE
+	always @(posedge clk) begin
+		if(cpu_rst) begin
+			ID_EX_IR_addr<=0;
+			ID_EX_IR<=0;
+			ID_EX_IR_addr_next<=0;
+			ID_EX_regw_addr<=0;
+			ID_EX_pc_src<=0;
+			ID_EX_a_src<=0;
+			ID_EX_b_src<=0;
+			ID_EX_addr_rs<=0;
+			ID_EX_addr_rt<=0;
+			ID_EX_data_rs<=0;
+			ID_EX_data_rt<=0;
+			ID_EX_data_imm<=0;
+			ID_EX_aluop<=0;
+			ID_EX_mem_ren<=0;
+			ID_EX_mem_wen<=0;
+			ID_EX_wb_data_src<=0;
+			wb_wen<=0;
+			ID_EX_rs_rt_equal<=0;
+		end
+		else if(cpu_en)begin
+			ID_EX_IR_addr<=IF_ID_IR_addr;
+			ID_EX_IR<=IF_ID_IR;
+			ID_EX_IR_addr_next<=IF_ID_IR_addr_next;
+			ID_EX_regw_addr<=regw_addr;
+			ID_EX_pc_src<=pc_src_ctrl;
+			ID_EX_a_src<=exe_a_src_ctrl;
+			ID_EX_b_src<=exe_b_src_ctrl;
+			ID_EX_addr_rs<=addr_rs;
+			ID_EX_addr_rt<=addr_rt;
+			ID_EX_data_rs<=data_rs;
+			ID_EX_data_rt<=data_rt;
+			ID_EX_data_imm<=data_imm;
+			ID_EX_aluop<=exe_alu_oper_ctrl;
+			ID_EX_mem_ren<=mem_ren_ctrl;
+			ID_EX_mem_wen<=mem_wen_ctrl;
+			ID_EX_wb_data_src<=wb_data_src_ctrl;
+			wb_wen<=wb_wen_ctrl;
+			ID_EX_rs_rt_equal<=rs_rt_equal;			
+		end
+	end
+	always @(*) begin
+		opa = ID_EX_data_rs;
+		opb = ID_EX_data_rt;
+		case (ID_EX_a_src)
+			EXE_A_RS: opa = ID_EX_data_rs;
+			EXE_A_LINK: opa = ID_EX_inst_addr_next;
+			//EXE_A_BRANCH: opa = ID_EX_inst_addr_next;
+		endcase
+		case (ID_EX_b_src)
+			EXE_B_RT: opb = ID_EX_data_rt;
+			EXE_B_IMM: opb = ID_EX_data_imm;
+			EXE_B_LINK: opb = 4;
+			//EXE_B_BRANCH: opb = ID_EX_data_imm << 2;
+		endcase
+	end
 	alu ALU (
 		.a(opa),
 		.b(opb),
-		.oper(exe_alu_oper_ctrl),
+		.oper(ID_EX_aluop),
 		.result(alu_out)
 		);
-	//MEM
-	assign
-		mem_ren = mem_ren_ctrl & cpu_en & ~cpu_rst,
-		mem_wen = mem_wen_ctrl & cpu_en & ~cpu_rst,
-		mem_addr = alu_out,
-		mem_dout = data_rt;
-	//WB
-	always @(*) begin
-		regw_data = alu_out;
-		case (wb_data_src_ctrl)
-			WB_DATA_ALU: regw_data = alu_out;
-			WB_DATA_MEM: regw_data = mem_din;
-		endcase
-	end
 	
 endmodule
