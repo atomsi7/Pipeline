@@ -38,15 +38,15 @@ module datapath (
 	input wire cpu_en  // cpu enable signal
 
 	// 这里的信号都是新加的 需要在controller里面进行改动
-	input wire is_branch;
-	output reg[4:0] ID_EX_regw_addr;
+	//input wire is_branch;
+	//output reg[4:0] ID_EX_regw_addr;
 	);
 	
 	`include "mips_define.vh"
 	
 	// data signals
 	wire [31:0] inst_addr_next;
-
+	wire is_branch;
 	
 	
 
@@ -69,6 +69,7 @@ module datapath (
 	reg ID_EX_mem_ren,ID_EX_mem_wen;
 	reg ID_EX_wb_data_src;
 	reg[4:0] ID_EX_addr_rs,ID_EX_addr_rt;
+	reg[4:0] ID_EX_regw_addr;
 	reg[31:0] ID_EX_data_rs,ID_EX_data_rt,ID_EX_data_imm;
 	reg [31:0] opa, opb;
 	wire [31:0] alu_out;
@@ -199,6 +200,8 @@ module datapath (
 	reg[31:0] branch_trg;
 	assign 
 		branch_trg = IF_ID_IR_addr_next + (data_imm << 2);	// branch target address
+	assign 
+		is_branch = (pc_src_ctrl==PC_JUMP)||(pc_src_ctrl==PC_JR)||(pc_src_ctrl==PC_BEQ)||(pc_src_ctrl==PC_BNE);
 	always @( *) begin
 		case(pc_src_ctrl)
 			PC_JUMP:IF_ID_trg_addr<={IF_ID_IR_addr[31:28],IF_ID_IR[25:0],2'b0};// jump address
@@ -215,8 +218,9 @@ module datapath (
 				else
 					IF_ID_trg_addr<=IF_ID_IR_addr_next;
 			end
-			default:
+			default:begin
 				IF_ID_trg_addr<=IF_ID_IR_addr_next;
+			end
 		endcase
 	end
 	//EXE
