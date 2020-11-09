@@ -66,14 +66,14 @@ module datapath (
 	reg[2:0] ID_EX_pc_src;
 	reg[1:0] ID_EX_a_src,ID_EX_b_src;
 	reg[3:0] ID_EX_aluop;
-	reg ID_EX_mem_ren,ID_EX_mem_wen;
+	reg ID_EX_mem_ren,ID_EX_mem_wen,wb_wen;
 	reg ID_EX_wb_data_src;
 	reg[4:0] ID_EX_addr_rs,ID_EX_addr_rt;
 	reg[4:0] ID_EX_regw_addr;
 	reg[31:0] ID_EX_data_rs,ID_EX_data_rt,ID_EX_data_imm;
 	reg [31:0] opa, opb;
 	wire [31:0] alu_out;
-	wire ID_EX_rs_rt_equal;	
+	reg ID_EX_rs_rt_equal;	
 
 
 	//EX->MEM
@@ -143,7 +143,7 @@ module datapath (
 		end
 		else if (cpu_en) begin
 			if(is_branch)	// this signal is new, CHECK CONTROLLER.V!!!!!!
-			// is_branch（input wire) 应该是表示是否跳转，包括j类和branch类，controller里面应该有这个信号的相关改动，要改一下
+			// is_branch（input wire) 应该是表示是否跳转，包括j类和branch类，controller里面应该有这个信号的相关改动，要改一�
 				inst_addr<=IF_ID_trg_addr;
 			else
 				inst_addr<=inst_addr_next;
@@ -198,7 +198,7 @@ module datapath (
 
 	assign
 		rs_rt_equal = (data_rs == data_rt);
-	reg[31:0] branch_trg;
+	wire[31:0] branch_trg;
 	assign 
 		branch_trg = IF_ID_IR_addr_next + (data_imm << 2);	// branch target address
 	assign 
@@ -273,7 +273,7 @@ module datapath (
 		opb = ID_EX_data_rt;
 		case (ID_EX_a_src)
 			EXE_A_RS: opa = ID_EX_data_rs;
-			EXE_A_LINK: opa = ID_EX_inst_addr_next;
+			EXE_A_LINK: opa = ID_EX_IR_addr_next;
 			//EXE_A_BRANCH: opa = ID_EX_inst_addr_next;
 		endcase
 		case (ID_EX_b_src)
@@ -302,7 +302,7 @@ module datapath (
 			EX_MEM_data_rt<=0;
 			EX_MEM_aluout<=0;
 
-			EX_MEN_pc_src<=0;
+			EX_MEM_pc_src<=0;
 
 			EX_MEM_mem_ren<=0;
 			EX_MEM_mem_wen<=0;
@@ -317,10 +317,10 @@ module datapath (
 			EX_MEM_IR_addr_next<=ID_EX_IR_addr_next;
 
 			EX_MEM_data_rs<=ID_EX_data_rs;
-			EX_MEM_data_rt<=ID_Ex_data_rt;
+			EX_MEM_data_rt<=ID_EX_data_rt;
 			EX_MEM_aluout<=alu_out;//aluout first time use
 
-			EX_MEN_pc_src<=ID_EX_pc_src;
+			EX_MEM_pc_src<=ID_EX_pc_src;
 
 			EX_MEM_mem_ren<=ID_EX_mem_ren;
 			EX_MEM_mem_wen<=ID_EX_mem_wen;
@@ -330,18 +330,19 @@ module datapath (
 			//regw_data<=;//!!!! ??
 			
 		end
+	end
 	assign 
 		mem_ren = EX_MEM_mem_ren,
 		mem_wen = EX_MEM_mem_wen,
 		mem_addr = EX_MEM_aluout;
-	always @(*) begin
-		mem_dout<=EX_MEM_data_rt;
-	end
+	assign
+		mem_dout=EX_MEM_data_rt;
+	
 	always @( *) begin
 		regw_data = EX_MEM_aluout;
 		case (EX_MEM_wb_data_src)
 			WB_DATA_ALU:regw_data = EX_MEM_aluout;
-			EB_DATA_MEM:regw_data = mem_din;
+			WB_DATA_MEM:regw_data = mem_din;
 		endcase
 	end
 	//reg[31:0] MEM_WB_aluout;
@@ -355,7 +356,7 @@ module datapath (
 	always@(posedge clk) begin
 		if(cpu_rst) begin
 			MEM_WB_aluout<=0;
-			MEN_WB_wb_data_src<=0;
+			MEM_WB_wb_data_src<=0;
 			MEM_WB_wb_wen<=0;
 			MEM_WB_mem_din<=0;
 			MEM_WB_regw_addr<=0;
@@ -363,7 +364,7 @@ module datapath (
 		end
 		else if(cpu_en)begin
 			MEM_WB_aluout<=EX_MEM_aluout;
-			MEN_WB_wb_data_src<=EX_MEM_wb_data_src;
+			MEM_WB_wb_data_src<=EX_MEM_wb_data_src;
 			MEM_WB_wb_wen<=EX_MEM_wb_wen;
 			MEM_WB_mem_din<=mem_din;
 			MEM_WB_regw_addr<=regw_addr;
