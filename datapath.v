@@ -83,6 +83,7 @@ module datapath (
 	reg EX_MEM_mem_ren,EX_MEM_mem_wen;
 	reg EX_MEM_wb_data_src;
 	reg [31:0] regw_data;
+	reg EX_MEM_wb_wen;
 
 	//MEM->WB
 	//reg[31:0] MEM_WB_IR,MEM_WB_IR_addr;
@@ -305,9 +306,10 @@ module datapath (
 
 			EX_MEM_mem_ren<=0;
 			EX_MEM_mem_wen<=0;
+			EX_MEM_wb_wen<=0;
 
 			EX_MEM_wb_data_src<=0;
-			regw_data<=0;
+			//regw_data<=0;
 		end
 		else if(cpu_en)begin
 			EX_MEM_IR<=ID_EX_IR;
@@ -322,18 +324,32 @@ module datapath (
 
 			EX_MEM_mem_ren<=ID_EX_mem_ren;
 			EX_MEM_mem_wen<=ID_EX_mem_wen;
+			EX_MEM_wb_wen<=wb_wen;
 
 			EX_MEM_wb_data_src<=ID_EX_wb_data_src;
-			regw_data<=;//!!!! ??
+			//regw_data<=;//!!!! ??
 			
 		end
-
-	reg[31:0] MEM_WB_aluout;
+	assign 
+		mem_ren = EX_MEM_mem_ren,
+		mem_wen = EX_MEM_mem_wen,
+		mem_addr = EX_MEM_aluout;
+	always @(*) begin
+		mem_dout<=EX_MEM_data_rt;
+	end
+	always @( *) begin
+		regw_data = EX_MEM_aluout;
+		case (EX_MEM_wb_data_src)
+			WB_DATA_ALU:regw_data = EX_MEM_aluout;
+			EB_DATA_MEM:regw_data = mem_din;
+		endcase
+	end
+	//reg[31:0] MEM_WB_aluout;
 	//reg MEM_WB_mem_ren,MEM_WB_mem_wen;
-	reg MEM_WB_wb_data_src;
-	reg MEM_WB_wb_wen;
-	reg[31:0] MEM_WB_mem_din;
-	reg[31:0] MEM_WB_regw_addr,MEM_WB_regw_data;
+	//reg MEM_WB_wb_data_src;
+	//reg MEM_WB_wb_wen;
+	//reg[31:0] MEM_WB_mem_din;
+	//reg[31:0] MEM_WB_regw_addr,MEM_WB_regw_data;
 
 	//WB
 	always@(posedge clk) begin
@@ -348,10 +364,10 @@ module datapath (
 		else if(cpu_en)begin
 			MEM_WB_aluout<=EX_MEM_aluout;
 			MEN_WB_wb_data_src<=EX_MEM_wb_data_src;
-			MEM_WB_wb_wen<=EX_MEM_wb; //!!!! wb_wen add
+			MEM_WB_wb_wen<=EX_MEM_wb_wen;
 			MEM_WB_mem_din<=mem_din;
-			MEM_WB_regw_addr<=; //!!!!  missing signal
-			MEM_WB_regw_data<=0;//!!!! missing signal
+			MEM_WB_regw_addr<=regw_addr;
+			MEM_WB_regw_data<=regw_data;
 
 		end
 
