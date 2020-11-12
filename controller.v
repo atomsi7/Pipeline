@@ -35,7 +35,7 @@ module controller (/*AUTOARG*/
 	
 	// instruction decode
 	always @(*) begin
-		pc_src = PC_NEXT;
+		pc_src = PC_NEXT;   // datapath:pc_src_ctrl
 		imm_ext = 0;
 		exe_a_src = EXE_A_RS;
 		exe_b_src = EXE_B_RT;
@@ -46,9 +46,9 @@ module controller (/*AUTOARG*/
 		wb_data_src = WB_DATA_ALU;
 		wb_wen = 0;
 		unrecognized = 0;
-		case (inst[31:26])
+		case (inst[31:26])	// opcode
 			INST_R: begin
-				case (inst[5:0])
+				case (inst[5:0])	// func
 					R_FUNC_JR: begin
 						pc_src = PC_JR;
 					end
@@ -101,15 +101,15 @@ module controller (/*AUTOARG*/
 			// end
 			INST_BEQ: begin
 				pc_src = PC_BEQ;
-				exe_a_src = EXE_A_BRANCH;
-				exe_b_src = EXE_B_BRANCH;
+				//exe_a_src = EXE_A_BRANCH;
+				//exe_b_src = EXE_B_BRANCH;
 				exe_alu_oper = EXE_ALU_ADD;
 				imm_ext = 1;
 			end
 			INST_BNE: begin
 				pc_src = PC_BNE;
-				exe_a_src = EXE_A_BRANCH;
-				exe_b_src = EXE_B_BRANCH;
+				//exe_a_src = EXE_A_BRANCH;
+				//exe_b_src = EXE_B_BRANCH;
 				exe_alu_oper = EXE_ALU_ADD;
 				imm_ext = 1;
 			end
@@ -124,7 +124,7 @@ module controller (/*AUTOARG*/
 			INST_ANDI: begin
 				imm_ext = 1;
 				exe_b_src = EXE_B_IMM;
-				exe_alu_oper = EXE_ALU_ADD;
+				exe_alu_oper = EXE_ALU_AND;
 				wb_addr_src = WB_ADDR_RT;
 				wb_data_src = WB_DATA_ALU;
 				wb_wen = 1;

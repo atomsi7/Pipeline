@@ -66,7 +66,7 @@ module datapath (
 	reg[2:0] ID_EX_pc_src;
 	reg[1:0] ID_EX_a_src,ID_EX_b_src;
 	reg[3:0] ID_EX_aluop;
-	reg ID_EX_mem_ren,ID_EX_mem_wen,wb_wen;
+	reg ID_EX_mem_ren,ID_EX_mem_wen,ID_EX_wb_wen;
 	reg ID_EX_wb_data_src;
 	reg[4:0] ID_EX_addr_rs,ID_EX_addr_rt;
 	reg[4:0] ID_EX_regw_addr;
@@ -84,6 +84,7 @@ module datapath (
 	reg EX_MEM_wb_data_src;
 	reg [31:0] regw_data;
 	reg EX_MEM_wb_wen;
+	reg[4:0] EX_MEM_regw_addr;
 
 	//MEM->WB
 	//reg[31:0] MEM_WB_IR,MEM_WB_IR_addr;
@@ -99,7 +100,7 @@ module datapath (
 	wire [31:0] debug_data_reg;
 	reg [31:0] debug_data_signal;
 	
-	always @(posedge clk) begin
+	always @(*) begin
 		case (debug_addr[4:0])
 			0: debug_data_signal <= inst_addr;
 			1: debug_data_signal <= inst_data;
@@ -110,21 +111,21 @@ module datapath (
 			6: debug_data_signal <= EX_MEM_IR_addr;
 			7: debug_data_signal <= EX_MEM_IR;
 			8: debug_data_signal <= {27'b0, addr_rs};
-			9: debug_data_signal <= data_rs;
+			9: debug_data_signal <= data_rs;// ID stage
 			10: debug_data_signal <= {27'b0, addr_rt};
-			11: debug_data_signal <= data_rt;
-			12: debug_data_signal <= data_imm;
-			13: debug_data_signal <= opa;
-			14: debug_data_signal <= opb;
-			15: debug_data_signal <= alu_out;
+			11: debug_data_signal <= data_rt;// ID stage
+			12: debug_data_signal <= data_imm;// ID stage
+			13: debug_data_signal <= opa;// EXE stage
+			14: debug_data_signal <= opb;// EXE stage
+			15: debug_data_signal <= alu_out;// EXE stage
 			16: debug_data_signal <= 0;
 			17: debug_data_signal <= 0;
 			18: debug_data_signal <= {19'b0, inst_ren, 7'b0, mem_ren, 3'b0, mem_wen};
 			19: debug_data_signal <= mem_addr;
 			20: debug_data_signal <= mem_din;
 			21: debug_data_signal <= mem_dout;
-			22: debug_data_signal <= {27'b0, regw_addr};
-			23: debug_data_signal <= regw_data;
+			22: debug_data_signal <= {27'b0, MEM_WB_regw_addr};
+			23: debug_data_signal <= MEM_WB_regw_data;
 			default: debug_data_signal <= 32'hFFFF_FFFF;
 		endcase
 	end
@@ -142,8 +143,7 @@ module datapath (
 			inst_addr <= 0;
 		end
 		else if (cpu_en) begin
-			if(is_branch)	// this signal is new, CHECK CONTROLLER.V!!!!!!
-			// is_branch（input wire) 应该是表示是否跳转，包括j类和branch类，controller里面应该有这个信号的相关改动，要改一�
+			if(is_branch)	
 				inst_addr<=IF_ID_trg_addr;
 			else
 				inst_addr<=inst_addr_next;
@@ -173,7 +173,7 @@ module datapath (
 
 
 	always @(*) begin
-		regw_addr = inst_data[15:11];
+		regw_addr = IF_ID_IR[15:11];
 		case (wb_addr_src_ctrl)
 			WB_ADDR_RD: regw_addr = addr_rd;
 			WB_ADDR_RT: regw_addr = addr_rt;
@@ -191,7 +191,7 @@ module datapath (
 		.data_a(data_rs),
 		.addr_b(addr_rt),
 		.data_b(data_rt),
-		.en_w(MEM_WB_wb_wen & cpu_en & ~cpu_rst),
+		.en_w(MEM_WB_wb_wen),
 		.addr_w(MEM_WB_regw_addr),
 		.data_w(MEM_WB_regw_data)
 		);
@@ -202,7 +202,8 @@ module datapath (
 	assign 
 		branch_trg = IF_ID_IR_addr_next + (data_imm << 2);	// branch target address
 	assign 
-		is_branch = (pc_src_ctrl==PC_JUMP)||(pc_src_ctrl==PC_JR)||(pc_src_ctrl==PC_BEQ)||(pc_src_ctrl==PC_BNE);
+		//is_branch = (pc_src_ctrl==PC_JUMP)||(pc_src_ctrl==PC_JR)||(pc_src_ctrl==PC_BEQ)||(pc_src_ctrl==PC_BNE);
+		is_branch = (pc_src_ctrl!=PC_NEXT);
 	always @( *) begin
 		case(pc_src_ctrl)
 			PC_JUMP:IF_ID_trg_addr<={IF_ID_IR_addr[31:28],IF_ID_IR[25:0],2'b0};// jump address
@@ -243,7 +244,7 @@ module datapath (
 			ID_EX_mem_ren<=0;
 			ID_EX_mem_wen<=0;
 			ID_EX_wb_data_src<=0;
-			wb_wen<=0;
+			ID_EX_wb_wen<=0;
 			ID_EX_rs_rt_equal<=0;
 		end
 		else if(cpu_en)begin
@@ -263,7 +264,7 @@ module datapath (
 			ID_EX_mem_ren<=mem_ren_ctrl;
 			ID_EX_mem_wen<=mem_wen_ctrl;
 			ID_EX_wb_data_src<=wb_data_src_ctrl;
-			wb_wen<=wb_wen_ctrl;
+			ID_EX_wb_wen<=wb_wen_ctrl;
 			ID_EX_rs_rt_equal<=rs_rt_equal;			
 		end
 	end
@@ -307,7 +308,7 @@ module datapath (
 			EX_MEM_mem_ren<=0;
 			EX_MEM_mem_wen<=0;
 			EX_MEM_wb_wen<=0;
-
+			EX_MEM_regw_addr<=0;
 			EX_MEM_wb_data_src<=0;
 			//regw_data<=0;
 		end
@@ -324,7 +325,8 @@ module datapath (
 
 			EX_MEM_mem_ren<=ID_EX_mem_ren;
 			EX_MEM_mem_wen<=ID_EX_mem_wen;
-			EX_MEM_wb_wen<=wb_wen;
+			EX_MEM_wb_wen<=ID_EX_wb_wen;
+			EX_MEM_regw_addr<=ID_EX_regw_addr;
 
 			EX_MEM_wb_data_src<=ID_EX_wb_data_src;
 			//regw_data<=;//!!!! ??
@@ -367,7 +369,7 @@ module datapath (
 			MEM_WB_wb_data_src<=EX_MEM_wb_data_src;
 			MEM_WB_wb_wen<=EX_MEM_wb_wen;
 			MEM_WB_mem_din<=mem_din;
-			MEM_WB_regw_addr<=regw_addr;
+			MEM_WB_regw_addr<=EX_MEM_regw_addr;
 			MEM_WB_regw_data<=regw_data;
 
 		end
