@@ -9,7 +9,7 @@ localparam
 // EXE A sources
 localparam
 	EXE_A_RS     = 0,
-	//EXE_A_SA     = 1,
+	EXE_A_SA     = 1,
 	EXE_A_LINK   = 2,
 	EXE_A_BRANCH = 3;
 
@@ -27,11 +27,11 @@ localparam
 	EXE_ALU_SLT    = 2,
 	//EXE_ALU_LUI    = 3,
 	EXE_ALU_AND    = 4,
-	EXE_ALU_OR     = 5;
+	EXE_ALU_OR     = 5,
 	//EXE_ALU_XOR    = 6,
 	//EXE_ALU_NOR    = 7,
-	//EXE_ALU_SL     = 8,
-	//EXE_ALU_SR     = 9;
+	EXE_ALU_SLL     = 8,
+	EXE_ALU_SRL     = 9;
 
 // WB address sources
 localparam
@@ -51,8 +51,8 @@ localparam
 // instructions
 localparam  // bit 31:26 for instruction type
 	INST_R          = 6'b000000,  // bit 5:0 for function type
-	//R_FUNC_SLL      = 6'b000000,
-	//R_FUNC_SRL      = 6'b000010,  // including ROTR(set bit 21)
+	R_FUNC_SLL      = 6'b000000,
+	R_FUNC_SRL      = 6'b000010,  // including ROTR(set bit 21)
 	//R_FUNC_SRA      = 6'b000011,
 	//R_FUNC_SLLV     = 6'b000100,
 	//R_FUNC_SRLV     = 6'b000110,  // including ROTRV(set bit 6)

@@ -82,6 +82,18 @@ module controller (/*AUTOARG*/
 						wb_data_src = WB_DATA_ALU;
 						wb_wen = 1;
 					end
+					R_FUNC_SLL:begin
+						exe_alu_oper = EXE_ALU_SLL;
+						wb_addr_src = WB_ADDR_RD;
+						wb_data_src = WB_DATA_ALU;
+						wb_wen = 1;
+					end
+					R_FUNC_SRL:begin
+						exe_alu_oper = EXE_ALU_SRL;
+						wb_addr_src = WB_ADDR_RD;
+						wb_data_src = WB_DATA_ALU;
+						wb_wen = 1;
+					end
 					default: begin
 						unrecognized = 1;
 					end
@@ -101,15 +113,15 @@ module controller (/*AUTOARG*/
 			// end
 			INST_BEQ: begin
 				pc_src = PC_BEQ;
-				//exe_a_src = EXE_A_BRANCH;
-				//exe_b_src = EXE_B_BRANCH;
+				exe_a_src = EXE_A_BRANCH;
+				exe_b_src = EXE_B_BRANCH;
 				exe_alu_oper = EXE_ALU_ADD;
 				imm_ext = 1;
 			end
 			INST_BNE: begin
 				pc_src = PC_BNE;
-				//exe_a_src = EXE_A_BRANCH;
-				//exe_b_src = EXE_B_BRANCH;
+				exe_a_src = EXE_A_BRANCH;
+				exe_b_src = EXE_B_BRANCH;
 				exe_alu_oper = EXE_ALU_ADD;
 				imm_ext = 1;
 			end

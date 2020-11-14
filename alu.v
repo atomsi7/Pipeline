@@ -31,6 +31,12 @@ module alu (
 			EXE_ALU_OR: begin
 				result = a | b;
 			end
+			EXE_ALU_SLL:begin
+				result = b << a;
+			end
+			EXE_ALU_SRL:begin
+				result = b >> a;
+			end
 		endcase
 	end
 	

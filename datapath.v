@@ -212,13 +212,13 @@ module datapath (
 				if(rs_rt_equal)
 					IF_ID_trg_addr<=branch_trg;
 				else
-					IF_ID_trg_addr<=IF_ID_IR_addr_next;
+					IF_ID_trg_addr<=IF_ID_IR_addr_next+4;
 			end
 			PC_BNE:begin 
 				if(!rs_rt_equal)
 					IF_ID_trg_addr<=branch_trg;
 				else
-					IF_ID_trg_addr<=IF_ID_IR_addr_next;
+					IF_ID_trg_addr<=IF_ID_IR_addr_next+4;
 			end
 			default:begin
 				IF_ID_trg_addr<=IF_ID_IR_addr_next;
@@ -274,6 +274,7 @@ module datapath (
 		opb = ID_EX_data_rt;
 		case (ID_EX_a_src)
 			EXE_A_RS: opa = ID_EX_data_rs;
+			EXE_A_SA: opa = ID_EX_IR[10:6]; // shamt
 			EXE_A_LINK: opa = ID_EX_IR_addr_next;
 			//EXE_A_BRANCH: opa = ID_EX_inst_addr_next;
 		endcase
